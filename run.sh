@@ -2,4 +2,4 @@
 
 set -e 
 
-poe_api ui -H "${HOST}" -p "${PORT}" -v "${INSTANCE}"
+bb_assistant ui -H "${HOST}" -p "${PORT}" -v "${INSTANCE}"

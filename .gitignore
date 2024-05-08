@@ -1,6 +1,12 @@
+lib
+lib64
+bin
+include
+pyvenv.cfg
 test.py
 tmp
 loaders
+etc
 __pycache__
 bb_assistant/__pycache__
 bb_assistant/llm/__pycache__

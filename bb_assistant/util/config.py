@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 import os
-PROXY_URI = os.getenv("PROXY","http://192.168.20.52:2080")
+PROXY_URI = os.getenv("PROXY","http://127.0.0.1:2080")
 
 class BaseConfig:
-
     def update(self, **kwargs):
         for k, v in kwargs.items():
             if hasattr(self, k):
@@ -55,6 +54,8 @@ def shred_coockies(dictionary):
         formatted_pairs.append(f"{key}={value}")
     result_string = "; ".join(formatted_pairs)
     return result_string 
+
+    
 GLOBAL_HEADERS = {
 "accept":"multipart/mixed; deferSpec=20220824, application/json",
 "quora-formkey":"d46531f9bc9f3c21d187a4a232dadd5d",
