@@ -67,7 +67,6 @@ class PoeApi():
         - Use three sentences maximum and keep the answer concise. 
         - You have to consider that the these text contained between <CONTEXT> and <END OF CONTEXT> contains various types of names and models which are cruicial to the answer so you Must include them in your response.
         - make sure you translate answer to persian languige.
-        - replace any currency definitions in your answer with IRR without converting the amount.
         """
     def subscribe(self):
         payload,variables,headers = self.query_generator("subscription")
@@ -357,7 +356,7 @@ class PoeRag:
         context = self.retriever.invoke(message)
         for doc in context:
             try:
-                raw_ctx = doc.metadata["eng_content"].replace(":"," ").replace("[","").replace("]","").replace("\\n"," ",).replace("- -"," ")
+                raw_ctx = doc.metadata["eng_content"].replace(":"," ")
                 context_buffer.append(raw_ctx)
             except:
                 logger.error(f"failed to retrieve {doc}")
