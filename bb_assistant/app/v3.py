@@ -63,6 +63,7 @@ def retrieve_context(retrievers:BaseRetriever,query:str) -> List[Document]:
             logger.info(f"appending {doc} from {classname} CLASS")
             for line in doc.page_content.split("."):
                 if line != "" and line != " ":
+                    line.replace("\u200c","")
                     buffer.append(Document(line))
                     per_retriever.append(line)
         _save(name=classname,buffer=per_retriever)

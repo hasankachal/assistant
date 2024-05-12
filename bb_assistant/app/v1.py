@@ -47,7 +47,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
+if "docs" not in st.session_state:
+    logger.info("Initiating Docs ...")
+    st.session_state.docs = create_docs()
 if "chat_history" not in st.session_state:
     logger.info("Initiating chat-history")
     st.session_state.chat_history = []
@@ -60,7 +62,7 @@ if "e5" not in st.session_state:
     st.session_state.e5 = E5Embeddings()
 if "retriever" not in st.session_state:
     logger.info("Initiating retriever ...")
-    st.session_state.retriever = document_loader(st.session_state.e5)
+    st.session_state.retriever = document_loader(st.session_state.e5,st.session_state.docs)
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
     st.session_state.llm = Ollama(model="llama3")
