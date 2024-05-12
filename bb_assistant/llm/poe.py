@@ -57,17 +57,31 @@ class PoeApi():
         self.setup_connection()
         self.connect_ws()
         self.subscribe()
-        # self.parent_prompt = "تو یک دستیار هوشمند فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی . حالا در کمال ادب و با حد اکثر اطلاعات به مکالمه ادامه بده"
-        self.parent_prompt =  """
-        System: Your name is BimeBazar-Assistant and you are my intelligent, knowledgeable, and helpful insurrance specialist bot.   
-        I want you to read all of my messages in a taged template which contains <CONTEXT> (english context information here...) <END OF CONTEXT> and <QUESTION> (a question in persian languige here...) <END OF QUESTION>.
-        in every message read the text in  <QUESTION> tag and answer it considering the text contained between <CONTEXT> section
-        I am NOT interested in your own prior knowledge or opinions and I want you to say I don't know if the provided information in <CONTEXT> is not enough to answer my question.
-        please note these rules/steps before answering:
-        - Use three sentences maximum and keep the answer concise. 
-        - You have to consider that the these text contained between <CONTEXT> and <END OF CONTEXT> contains various types of names and models which are cruicial to the answer so you Must include them in your response.
-        - make sure you translate answer to persian languige.
+        self.parent_prompt = """
+        تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
+        <سوال>
+        و
+        <پایان سوال>
+        بخوان و بر اساس محتویات داده شده در تگ
+        <زمینه>
+        و
+        <پایان زمینه>
+        پاسخ بده،
+        سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکن
         """
+        
+        # self.parent_prompt =  """
+        # # System: Your name is BimeBazar-Assistant and you are my intelligent, knowledgeable, and helpful insurrance specialist bot.   
+        # # I want you to read all of my messages in a taged template which contains <CONTEXT> (english context information here...) <END OF CONTEXT> and <QUESTION> (a question in persian languige here...) <END OF QUESTION>.
+        # # in every message read the text in  <QUESTION> tag and answer it considering the text contained between <CONTEXT> section
+        # # I am NOT interested in your own prior knowledge or opinions and I want you to say I don't know if the provided information in <CONTEXT> is not enough to answer my question.
+        # # please note these rules/steps before answering:
+        # # - Use three sentences maximum and keep the answer concise. 
+        # # - You have to consider that the these text contained between <CONTEXT> and <END OF CONTEXT> contains various types of names and models which are cruicial to the answer so you Must include them in your response.
+        # # - make sure you translate answer to persian languige.
+        # # """
+        # self.parent_prompt = "تو یک دستیار پژوهشی هستی که قرار است برای من به عنوان یک استاد دانشگاه خلاصه سازی متون تخصصی بیمه انجام دهی"
+        
     def subscribe(self):
         payload,variables,headers = self.query_generator("subscription")
         result = self.client.execute(query=payload,variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
@@ -127,7 +141,7 @@ class PoeApi():
         payload,variables,headers = self.query_generator("message-edge")
         if chatbot == "" or chatbot is None:
             chatbot = "capybara"
-        if chatId == 0 or chatId is None:
+        if self.activeId is None or chatId == 0 or chatId is None:
             variables["query"] = self.parent_prompt
             variables["bot"] = chatbot
             variables["messagePointPrice"] = self.price_mapping[chatbot]
@@ -147,6 +161,7 @@ class PoeApi():
             variables["bot"] = chatbot
             variables["chatId"]= self.activeId
             variables["messagePointPrice"] = self.price_mapping[chatbot]
+            print("CHATID",self.activeId)
             message_data = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
         except Exception as e:
             raise e
@@ -287,7 +302,6 @@ class PoeApi():
 
     def on_ws_close(self, ws, close_status_code, close_message):
         logger.warning(f"Websocket closed with status {close_status_code}: {close_message}")
-        print(self.active_message)
         self.ws_connecting = False
         self.ws_connected = False
         if self.ws_error:
@@ -336,19 +350,19 @@ class PoeApi():
 class PoeRag:
     def __init__(self,wire:PoeApi,retriever):
         self.wire = wire
-        self.retriever = retriever.as_retriever(search_kwargs={"k":8})
+        self.retriever = retriever
 
     def make_prompt(self,message:str="",context:str=""):
         
         template = f"""
-            <CONTEXT>
+            <زمینه>
             {context}
-            <END OF CONTEXT>
+            <پایان زمینه>
             
             
-            <QUESTION>
+            <سوال>
             {message} 
-            <END OF QUESTION>
+            <پایان سوال>
             """
         return template
     def retrieve_context(self,message):
@@ -356,12 +370,13 @@ class PoeRag:
         context = self.retriever.invoke(message)
         for doc in context:
             try:
-                raw_ctx = doc.metadata["eng_content"].replace(":"," ")
-                context_buffer.append(raw_ctx)
+                content = doc.page_content.replace("\n","").replace("  "," ")
+                sections = content.split(".")
+                context_buffer.extend(sections)
             except:
                 logger.error(f"failed to retrieve {doc}")
         return '\n'.join(context_buffer)
-    def invoke(self,chatbot:str="capybara",chatId:int=None,message:str="") -> Any:
+    def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="") -> Any:
         context = self.retrieve_context(message)
         template_msg = self.make_prompt(message,context)
         answer,chatId = self.wire.send_message(chatbot=chatbot,chatId=chatId,message=template_msg)

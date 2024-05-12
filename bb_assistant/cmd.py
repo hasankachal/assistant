@@ -7,7 +7,7 @@ import streamlit.web.bootstrap
 # read commandline args to initiate server (runtime starts here !)
 def main():
     parser = ArgumentParser(
-        prog="poe bots api wrapper",
+        prog="BimeBazar Assistant App",
         description="api wrapper for pdf classification",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

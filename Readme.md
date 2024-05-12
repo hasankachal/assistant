@@ -1,4 +1,4 @@
-# POE API
+# BB_ASSISTANT
 a rag system powered by bimebazar weblog data and custom LLM and retriever 
 
 ### startup

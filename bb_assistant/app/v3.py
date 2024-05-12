@@ -1,14 +1,23 @@
 from bb_assistant.util.logging import logger
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from bb_assistant.vectorizer.e5 import E5Embeddings
+from bb_assistant.retriever.custom import document_loader,BM25Retriever,create_docs
+
+from bb_assistant.util.translation import *
 from bb_assistant.util.config import *
-from bb_assistant.llm.poe import PoeApi
 import streamlit as st
 import time
-WRAPPER = None
+# from langchain_community.llms import Ollama
+from bb_assistant.llm.poe import PoeApi,PoeRag
+# from bb_assistant.llm import aya
+
 
 st.set_page_config(layout='wide')
 
 
-st.title('🦜🔗 INTELIX')
+st.title('🦜🔗 BB-Assistant')
 st.session_state.theme = "dark"
 
 st.markdown(
@@ -38,20 +47,28 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+
 if "chat_history" not in st.session_state:
+    logger.info("Initiating chat-history")
     st.session_state.chat_history = []
-if "chat_id" not in st.session_state:
-    st.session_state.chat_id = 0
 if "wrapper" not in st.session_state:
-    st.session_state.wrapper = PoeApi(ACCOUNT_TOKENS2,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS2)
-
-
-def click_button():
-    st.session_state.chat_history = []
-    st.session_state.chat_id = 0
-    st.session_state.wrapper = PoeApi(ACCOUNT_TOKENS2,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS2)
-
-st.button("Reset", type="primary",on_click=click_button)
+    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS2,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS2)
+if "chat_id" not in st.session_state:
+    st.session_state.chat_id = None
+if "docs" not in st.session_state:
+    logger.info("Initiating Docs ...")
+    st.session_state.docs = create_docs()
+if "e5" not in st.session_state:
+    logger.info("Initiating Vectorizer ...")
+    st.session_state.e5 = BM25Retriever
+if "retriever" not in st.session_state:
+    logger.info("Initiating retriever ...")
+    st.session_state.retriever = document_loader(st.session_state.e5,docs=st.session_state.docs)
+if "llm" not in st.session_state:
+    logger.info("Initiating LLM ...")
+    # st.session_state.llm = Ollama(model="llama3")
+    st.session_state.llm = PoeRag(wire=st.session_state.wrapper,retriever=st.session_state.retriever)
 for message in st.session_state.chat_history:
     if message["src"] == "Human":
         with st.chat_message("Human"):
@@ -59,12 +76,11 @@ for message in st.session_state.chat_history:
     elif message["src"] == "AI":
         with st.chat_message("AI"):
             st.markdown(message["text"])
-def generate_response(input_text,session):
-
-    response,chatid = st.session_state.wrapper.send_message(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
-    st.session_state.chat_id = chatid
+def generate_response_llm(input_text,session):
+    logger.info("Invoking prompt to chain ...")
+    response,chatId = st.session_state.llm.invoke(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
+    st.session_state.chat_id = chatId
     session.append({"src":"AI","text":response})
-    st.caption(f"chat Id {st.session_state.chat_id}")
     for letter in response:
         time.sleep(0.01)
         yield letter
@@ -78,5 +94,5 @@ if user_query is not None and user_query != "":
     with st.chat_message("Human"):
         st.markdown(user_query,unsafe_allow_html=True)
     with st.chat_message("AI"):
-        st.write_stream(generate_response(user_query,st.session_state.chat_history))
+        st.write_stream(generate_response_llm(user_query,st.session_state.chat_history))
 

@@ -14,3 +14,7 @@ pandas
 bitsandbytes
 accelerate
 streamlit
+FlashRank
+rank_bm25
+nltk
+future
