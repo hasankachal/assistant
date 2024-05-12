@@ -11,6 +11,7 @@ __pycache__
 bb_assistant/__pycache__
 bb_assistant/llm/__pycache__
 bb_assistant/vectorizer/__pycache__
+bb_assistant/retriever/__pycache__
 bb_assistant/config/__pycache__
 bb_assistant/util/__pycache__
 bb_assistant/app/__pycache__

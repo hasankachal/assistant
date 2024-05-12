@@ -48,7 +48,7 @@ ACCOUNT_TOKENS2 = {
     "m-lat":"IBnPFBbUdxdJ5LFYPPqUuWyw9hKqKCgNobPX0HfWGw=="
     
 }
-def shred_coockies(dictionary):
+def shred_cookies(dictionary):
     formatted_pairs = []
     for key, value in dictionary.items():
         formatted_pairs.append(f"{key}={value}")
@@ -63,7 +63,7 @@ GLOBAL_HEADERS = {
 "user-agent":"Poe a2.39.8 rv:3918 env:prod (SM-S908E; Android OS 9; en_US)",
 "poe-language-code":"en",
 "content-type":"application/json",
-"cookie":shred_coockies(ACCOUNT_TOKENS2)
+"cookie":shred_cookies(ACCOUNT_TOKENS2)
 }
 
 HTTP_PROXY = {

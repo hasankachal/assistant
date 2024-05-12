@@ -12,6 +12,7 @@ import requests
 from langchain_core.language_models.llms import LLM
 from typing import Any, Dict, Iterator, List, Mapping, Optional
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+from langchain_core.documents import Document
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -348,12 +349,11 @@ class PoeApi():
 
 
 class PoeRag:
-    def __init__(self,wire:PoeApi,retriever):
+    def __init__(self,wire:PoeApi):
         self.wire = wire
-        self.retriever = retriever
 
     def make_prompt(self,message:str="",context:str=""):
-        
+
         template = f"""
             <زمینه>
             {context}
@@ -365,20 +365,9 @@ class PoeRag:
             <پایان سوال>
             """
         return template
-    def retrieve_context(self,message):
-        context_buffer = []
-        context = self.retriever.invoke(message)
-        for doc in context:
-            try:
-                content = doc.page_content.replace("\n","").replace("  "," ")
-                sections = content.split(".")
-                context_buffer.extend(sections)
-            except:
-                logger.error(f"failed to retrieve {doc}")
-        return '\n'.join(context_buffer)
-    def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="") -> Any:
-        context = self.retrieve_context(message)
-        template_msg = self.make_prompt(message,context)
+    def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="",context:List[Document]=[]) -> Any:
+        raw_context = [x.page_content for x in context]
+        template_msg = self.make_prompt(message,raw_context)
         answer,chatId = self.wire.send_message(chatbot=chatbot,chatId=chatId,message=template_msg)
         return answer,chatId
     @property

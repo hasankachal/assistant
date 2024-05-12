@@ -10,7 +10,7 @@ st.set_page_config(layout='wide')
 
 st.title('🦜🔗 INTELIX')
 st.session_state.theme = "dark"
-
+st.session_state.bot = "beaver"
 st.markdown(
     """
 <style>
@@ -61,7 +61,7 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response(input_text,session):
 
-    response,chatid = st.session_state.wrapper.send_message(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
+    response,chatid = st.session_state.wrapper.send_message(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text)
     st.session_state.chat_id = chatid
     session.append({"src":"AI","text":response})
     st.caption(f"chat Id {st.session_state.chat_id}")

@@ -4,11 +4,11 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from bb_assistant.vectorizer.e5 import E5Embeddings
 from bb_assistant.retriever.chroma import document_loader
-from bb_assistant.util.translation import *
+from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
 import streamlit as st
 import time
-# from langchain_community.llms import Ollama
+from langchain_community.llms import Ollama
 from bb_assistant.llm.poe import PoeApi,PoeRag
 # from bb_assistant.llm import aya
 
@@ -63,8 +63,7 @@ if "retriever" not in st.session_state:
     st.session_state.retriever = document_loader(st.session_state.e5)
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
-    # st.session_state.llm = Ollama(model="llama3")
-    st.session_state.llm = PoeRag(wire=st.session_state.wrapper,retriever=st.session_state.retriever)
+    st.session_state.llm = Ollama(model="llama3")
 for message in st.session_state.chat_history:
     if message["src"] == "Human":
         with st.chat_message("Human"):
