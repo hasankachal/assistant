@@ -60,7 +60,7 @@ def retrieve_context(retrievers:BaseRetriever,query:str) -> List[Document]:
         result = retriever.invoke(query)
         for doc in result:
             classname = retriever.__repr__()[:15]
-            logger.info(f"appending {doc} from {classname} CLASS")
+            logger.info(f"appending doc from {classname} CLASS")
             for line in doc.page_content.split("."):
                 if line != "" and line != " ":
                     line.replace("\u200c","")
@@ -97,7 +97,7 @@ if "reranker" not in st.session_state:
     st.session_state.reranker = Reranker()
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
-    st.session_state.llm = PoeRag(wire=st.session_state.wrapper,retriever=st.session_state.retriever)
+    st.session_state.llm = PoeRag(wire=st.session_state.wrapper)
 if "chat_history" not in st.session_state:
     logger.info("Initiating chat-history")
     st.session_state.chat_history = []
