@@ -142,27 +142,26 @@ class PoeApi():
         payload,variables,headers = self.query_generator("message-edge")
         if chatbot == "" or chatbot is None:
             chatbot = "capybara"
-        if self.activeId is None or chatId == 0 or chatId is None:
+        if chatId == 0 or chatId is None:
             variables["query"] = self.parent_prompt
             variables["bot"] = chatbot
             variables["messagePointPrice"] = self.price_mapping[chatbot]
             initial_msg = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
             self.activeId = initial_msg["data"]["messageEdgeCreate"]["chat"]["chatId"]
-            logger.warning(f"initiated new chat with id {self.activeId}")
+            logger.warning(f"initiated initialized chat with id {self.activeId}")
             while self.lock:
-                time.sleep(0.2)
+                time.sleep(3)
+            logger.warning(f"dumping away {self.active_message} on checkpoint {self.checkpoint}")
             self.lock = True
             self.active_message = ""
             self.checkpoint = 0
-
-        logger.info(f"Sending message to {chatbot}: {message}")
+            time.sleep(1)
 
         try:
             variables["query"] = message
             variables["bot"] = chatbot
             variables["chatId"]= self.activeId
             variables["messagePointPrice"] = self.price_mapping[chatbot]
-            print("CHATID",self.activeId)
             message_data = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
         except Exception as e:
             raise e
@@ -352,11 +351,11 @@ class PoeRag:
     def __init__(self,wire:PoeApi):
         self.wire = wire
 
-    def make_prompt(self,message:str="",context:str=""):
-
+    def make_prompt(self,message:str="",context:list=[]):
+        raw_context = '\n'.join(context)
         template = f"""
             <زمینه>
-            {context}
+            {raw_context}
             <پایان زمینه>
             
             
@@ -366,7 +365,7 @@ class PoeRag:
             """
         return template
     def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="",context:List[Document]=[]) -> Any:
-        raw_context = [x.page_content for x in context]
+        raw_context = [x.page_content for x in context[:10]]
         template_msg = self.make_prompt(message,raw_context)
         answer,chatId = self.wire.send_message(chatbot=chatbot,chatId=chatId,message=template_msg)
         return answer,chatId
