@@ -1,6 +1,5 @@
 import argparse
 from argparse import ArgumentParser
-from bb_assistant.app import v1
 from bb_assistant.util.config import Api_Metrics
 from streamlit import config as _config
 import streamlit.web.bootstrap
@@ -8,7 +7,7 @@ import streamlit.web.bootstrap
 def main():
     parser = ArgumentParser(
         prog="BimeBazar Assistant App",
-        description="api wrapper for pdf classification",
+        description="bimebazar smart assistant",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     subcommands = parser.add_subparsers(
@@ -26,33 +25,39 @@ def main():
         type=str,
         default="0.0.0.0",
         help='host to serve on',
+        required=False
     )
     run_parser.add_argument(
         '-p', '--port',
         type=int,
         default=9000,
         help='Port to listen on',
+        required=False
     )
     run_parser.add_argument(
         '-w', '--num-workers',
         type=int,
         default=1,
         help='Number of workers',
+        required=False
     )
     run_parser.add_argument(
         '-v', '--version',
         type=str,
-        default="v1",
+        default="v3",
         help='Api Version',
+        required=False
     )
     run_parser.add_argument(
         '-a', '--loglevel',
         type=str,
         default="info",
         help='Api logging level',
+        required=False
     )
     args = parser.parse_args()
     if args.subcommand == 'run':
+        print("VERSION IS",args.version)
         _config.set_option("server.headless", True)
         _config.set_option("server.address", args.host)
         _config.set_option("browser.serverAddress", args.host)

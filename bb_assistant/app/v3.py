@@ -53,24 +53,47 @@ def _save(name,buffer):
     with open(f"assets/test/{name}.json","w",encoding='utf-8') as file:
         json.dump(buffer,file,ensure_ascii=False,indent=4)
 
-def retrieve_context(retrievers:BaseRetriever,query:str) -> List[Document]:
+def retrieve_context_summerymode(retriever:BaseRetriever,query:str) -> List[Document]:
+    buffer = []
+    result = retriever.invoke(query)
+    for doc in result:
+        classname = retriever.__repr__()[:13]
+        logger.info(f"appending from {classname} CLASS")
+        for line in doc.metadata["content"].split("."):
+            if line != "" and line != " ":
+                line.replace("\u200c","")
+                buffer.append(Document(page_content=line))
+
+    return buffer
+
+def retrieve_context_default(retriever:BaseRetriever,query:str) -> List[Document]:
+    buffer = []
+    result = retriever.invoke(query)
+    for doc in result:
+        classname = retriever.__repr__()[:13]
+        logger.info(f"appending from {classname} CLASS")
+        for line in doc.page_content.split("."):
+            if line != "" and line != " ":
+                line.replace("\u200c","")
+                buffer.append(Document(page_content=line))
+
+    return buffer
+def retrieve_public(retrievers:BaseRetriever,query:str) -> List[Document]:
     buffer = []
     for retriever in retrievers:
         per_retriever = []
         result = retriever.invoke(query)
         for doc in result:
-            classname = retriever.__repr__()[:15]
-            logger.info(f"appending doc from {classname} CLASS")
+            classname = retriever.__repr__()[:13]
+            logger.info(f"appending from {classname} CLASS")
             for line in doc.page_content.split("."):
                 if line != "" and line != " ":
                     line.replace("\u200c","")
-                    buffer.append(Document(line))
+                    buffer.append(Document(page_content=line))
                     per_retriever.append(line)
-        _save(name=classname,buffer=per_retriever)
+            _save(name=classname,buffer=per_retriever)
+    
     return buffer
-
-
-
 if "e5" not in st.session_state:
     logger.info("Initiating E3Embeddings ...")
     st.session_state.e5 = E5Embeddings()
@@ -79,7 +102,7 @@ if "bm25" not in st.session_state:
     st.session_state.bm25 = BM25Retriever
 if "wrapper" not in st.session_state:
     logger.info("Initiating Wrapper Wire ...")
-    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS2,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS2)
+    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS3,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS3)
 if "chat_id" not in st.session_state:
     logger.info("Initiating ChatId ...")
     st.session_state.chat_id = None
@@ -111,9 +134,15 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to LLM ...")
-    context = retrieve_context([st.session_state.retriever_1,st.session_state.retriever_2],input_text)
-    ranked_context = st.session_state.reranker.rerank(input_text,context)
-    response,chatId = st.session_state.llm.invoke(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text,context=ranked_context)
+    context1 = retrieve_context_summerymode(st.session_state.retriever_2,input_text)
+    context2 = retrieve_context_default(st.session_state.retriever_1,input_text)
+    # context = context1 + context2
+    # context = retrieve_public([st.session_state.retriever_1],query=input_text)
+    context1.extend(context2[:12])
+    context = context1
+    # ranked_context = st.session_state.reranker.rerank(input_text,context)
+    _save(name="merged",buffer=[x.page_content for x in context])
+    response,chatId = st.session_state.llm.invoke(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text,context=context1)
     st.session_state.chat_id = chatId
     session.append({"src":"AI","text":response})
     for letter in response:

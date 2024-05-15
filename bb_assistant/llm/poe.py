@@ -20,7 +20,7 @@ class PoeApi():
     gql_url = "https://poe.com/api/gql_POST"
     gql_recv_url = "https://poe.com/api/receive_POST"
     home_url = "https://poe.com"
-    settings_url = "https://poe.com/api/settings?channel=poe-chan57-8888-rmksxcluozhovypdbsay"
+    settings_url = f"https://poe.com/api/settings?channel={SOCKET_CHANNEL3['channel']}"
 
     def __init__(self, tokens:dict={}, proxy:dict={}, headers:dict={}, cookies:dict={},device_id=None):
         self.ws_connecting = False
@@ -40,6 +40,7 @@ class PoeApi():
         self.checkpoint = 0
         self.lock = True
         self.price_mapping = {
+            'gpt4_o':300,
             'capybara': 20,
             'beaver': 350, 
             'llama38bt': 15, 
@@ -57,20 +58,33 @@ class PoeApi():
             'sd3turbo': 1000}
         self.setup_connection()
         self.connect_ws()
-        self.subscribe()
+        # self.subscribe()
+        # self.parent_prompt = """
+        # تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
+        # <سوال>
+        # و
+        # <پایان سوال>
+        # بخوان و بر اساس محتویات داده شده در تگ
+        # <زمینه>
+        # و
+        # <پایان زمینه>
+        # پاسخ بده،
+        # سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکن
+        # """
         self.parent_prompt = """
-        تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
+        تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. لطفا کلیه پیام های من رو در قالب تگ 
         <سوال>
-        و
+        متن سوال اینجا قرار میگیرد
         <پایان سوال>
         بخوان و بر اساس محتویات داده شده در تگ
         <زمینه>
-        و
+        مطالب زمینه اینجا قرار میگیرند
         <پایان زمینه>
         پاسخ بده،
-        سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکن
+         سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکنی
+         سعی کن از تمامی داده های داخل قسمت <زمینه> در پاسخ خودت استفاده کنی 
+         پاسخ خود را همیشه با کلمات 'طبق اطلاهات من' شروع کن
         """
-        
         # self.parent_prompt =  """
         # # System: Your name is BimeBazar-Assistant and you are my intelligent, knowledgeable, and helpful insurrance specialist bot.   
         # # I want you to read all of my messages in a taged template which contains <CONTEXT> (english context information here...) <END OF CONTEXT> and <QUESTION> (a question in persian languige here...) <END OF QUESTION>.
@@ -81,7 +95,6 @@ class PoeApi():
         # # - You have to consider that the these text contained between <CONTEXT> and <END OF CONTEXT> contains various types of names and models which are cruicial to the answer so you Must include them in your response.
         # # - make sure you translate answer to persian languige.
         # # """
-        # self.parent_prompt = "تو یک دستیار پژوهشی هستی که قرار است برای من به عنوان یک استاد دانشگاه خلاصه سازی متون تخصصی بیمه انجام دهی"
         
     def subscribe(self):
         payload,variables,headers = self.query_generator("subscription")
@@ -96,13 +109,13 @@ class PoeApi():
     
     def query_generator(self,alias):
         query_mapping = {
-            "bot-pagination":{"x-apollo-operation-name":"PaginatedAvailableBotsQuery","x-apollo-operation-id":"1daea57913eca8ada613976825000fcaf6d14da61ecffead24923eb6fcf24bfd"},
-            "message-edge":{"x-apollo-operation-name":"MessageEdgeCreateMutation","x-apollo-operation-id":"51e3bfc91d9b1db6b0ab7c9e4fb42e35eed2bebd0f150593a7be9bf4e506480c"},
+            "bot-pagination":{"x-apollo-operation-name":"PaginatedAvailableBotsQuery","x-apollo-operation-id":"c9751b1c86a79597ede502ef005cf582ae064a977d5625a01073eed294e4d8e8"},
+            "message-edge":{"x-apollo-operation-name":"MessageEdgeCreateMutation","x-apollo-operation-id":"8ffd5afe2cf22981eba9611d6c59e7d496d0bffab6fcd57e66f185f182d8b63d"},
             "bot-query":{"x-apollo-operation-name":"BotQuery","x-apollo-operation-id":"57d625dbe6dca65f0edd973c1a4b0d480625e4a1e6375bbf5dfc26271b9c45db"},
             "chat-pagination":{"x-apollo-operation-name":"ChatPaginationQuery","x-apollo-operation-id":"64c610268079c4bc055017b1c15b229fcf91cf783a4b36075055fd84cb0aa4d7"},
-            "chat-list":{"x-apollo-operation-name":"ChatListQuery","x-apollo-operation-id":"ead83e397c50506039eb848e56dad930bffd79578ed3c819f0b2d159b742e716"},
-            "bots-explore":{"x-apollo-operation-name":"ExploreBotsPaginationQuery","x-apollo-operation-id":"73524a41c46efe9f6455428add5fec085e75e07ef5f853c1b97b5331b461b722"},
-            "subscription":{"x-apollo-operation-name":"SubscriptionQuery","x-apollo-operation-id":"5fdb0a83f971b3587675dd2c0a5f8390510792c229baecc10081788c4d579b74"}
+            "chat-list":{"x-apollo-operation-name":"ChatListQuery","x-apollo-operation-id":"fd702a921efa8651625a1c07de4412e8f75219281a2406c0cf8a8594697ab1a5"},
+            "bots-explore":{"x-apollo-operation-name":"ExploreBotsPaginationQuery","x-apollo-operation-id":"7ec7e6ef9f018de1913a3f6de90ae8ff6dd743ee72ca078ea1eafa693fd47760"},
+            "subscription":{"x-apollo-operation-name":"SubscriptionQuery","x-apollo-operation-id":"73371cbe94c075c9d4e2c4e1ff51db6a8c79e16c4e1a98481746dff67b86073f"}
         }
         key = query_mapping[alias]["x-apollo-operation-name"]
         static_headers = self.static_headers
@@ -155,8 +168,6 @@ class PoeApi():
             self.lock = True
             self.active_message = ""
             self.checkpoint = 0
-            time.sleep(1)
-
         try:
             variables["query"] = message
             variables["bot"] = chatbot
@@ -249,7 +260,7 @@ class PoeApi():
         wssHeads = {
             'Upgrade':'websocket',
             'Connection':'Upgrade',
-            'Sec-WebSocket-Key':'7ynTBHKmaYpQ077VUPEOTA==',
+            'Sec-WebSocket-Key': SOCKET_CHANNEL3["wss-key"],
             'Sec-WebSocket-Version':'13',
             'User-Agent':'okhttp/4.12.0',
             'Host':self.ws_domain +".tch.poe.com",
@@ -365,7 +376,7 @@ class PoeRag:
             """
         return template
     def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="",context:List[Document]=[]) -> Any:
-        raw_context = [x.page_content for x in context[:10]]
+        raw_context = [x.page_content for x in context[:12]]
         template_msg = self.make_prompt(message,raw_context)
         answer,chatId = self.wire.send_message(chatbot=chatbot,chatId=chatId,message=template_msg)
         return answer,chatId

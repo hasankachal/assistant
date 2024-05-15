@@ -33,15 +33,16 @@ def create_docs():
     base_data = read_data("fa.json")
     docs_buffer = []
     for chunk in base_data:
-        temp_doc = Document(page_content=chunk['content'].replace("\n",""))
+        temp_doc = Document(page_content=chunk['content'].replace("\n","").replace('\u200c', ""))
         temp_doc.metadata = {"source":filepath,"id":chunk['id']}
         docs_buffer.append(temp_doc)
     return docs_buffer
 
-
+ms = "ms-marco-MultiBERT-L-12"
+zf = "rank_zephyr_7b_v1_full"
 class Reranker:
     def __init__(
-        self, model_name: str = "ms-marco-MultiBERT-L-12", cache_dir: str = "/home/frox/"
+        self, model_name: str = ms, cache_dir: str = "/home/frox/"
     ) -> None:
         self.ranker = None
         self.model_name = model_name
@@ -49,7 +50,7 @@ class Reranker:
 
     def load(self):
         if self.ranker is None:
-            self.ranker = Ranker(model_name=self.model_name, cache_dir=self.cache_dir)
+            self.ranker = Ranker(model_name=self.model_name, cache_dir=self.cache_dir, max_length=59000)
 
     def rerank(
         self,
