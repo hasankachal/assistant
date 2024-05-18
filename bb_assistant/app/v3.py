@@ -4,8 +4,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from bb_assistant.vectorizer.e5 import E5Embeddings
 from bb_assistant.vectorizer.bm25 import BM25Retriever
-from bb_assistant.retriever.custom import document_loader as custom_retriever
-from bb_assistant.retriever.chroma import document_loader as chroma_retriever
+from bb_assistant.vectorizer.tfidf import TfIdfRetriever
+from bb_assistant.retriever.manual import topic_loader,raw_loader
 from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
 import streamlit as st
@@ -20,7 +20,7 @@ st.set_page_config(layout='wide')
 
 st.title('🦜🔗 BB-Assistant')
 st.session_state.theme = "dark"
-st.session_state.bot = "beaver"
+st.session_state.bot = "gpt4_o"
 
 st.markdown(
     """
@@ -53,7 +53,7 @@ def _save(name,buffer):
     with open(f"assets/test/{name}.json","w",encoding='utf-8') as file:
         json.dump(buffer,file,ensure_ascii=False,indent=4)
 
-def retrieve_context_summerymode(retriever:BaseRetriever,query:str) -> List[Document]:
+def retrieve_topic(retriever:BaseRetriever,query:str) -> List[Document]:
     buffer = []
     result = retriever.invoke(query)
     for doc in result:
@@ -66,7 +66,7 @@ def retrieve_context_summerymode(retriever:BaseRetriever,query:str) -> List[Docu
 
     return buffer
 
-def retrieve_context_default(retriever:BaseRetriever,query:str) -> List[Document]:
+def retrieve_page_content(retriever:BaseRetriever,query:str) -> List[Document]:
     buffer = []
     result = retriever.invoke(query)
     for doc in result:
@@ -76,22 +76,8 @@ def retrieve_context_default(retriever:BaseRetriever,query:str) -> List[Document
             if line != "" and line != " ":
                 line.replace("\u200c","")
                 buffer.append(Document(page_content=line))
-
     return buffer
-def retrieve_public(retrievers:BaseRetriever,query:str) -> List[Document]:
-    buffer = []
-    for retriever in retrievers:
-        per_retriever = []
-        result = retriever.invoke(query)
-        for doc in result:
-            classname = retriever.__repr__()[:13]
-            logger.info(f"appending from {classname} CLASS")
-            for line in doc.page_content.split("."):
-                if line != "" and line != " ":
-                    line.replace("\u200c","")
-                    buffer.append(Document(page_content=line))
-                    per_retriever.append(line)
-            _save(name=classname,buffer=per_retriever)
+
     
     return buffer
 if "e5" not in st.session_state:
@@ -100,6 +86,9 @@ if "e5" not in st.session_state:
 if "bm25" not in st.session_state:
     logger.info("Initiating Bm25Embeddings ...")
     st.session_state.bm25 = BM25Retriever
+if "tfidf" not in st.session_state:
+    logger.info("Initiating Bm25Embeddings ...")
+    st.session_state.tfidf = TfIdfRetriever
 if "wrapper" not in st.session_state:
     logger.info("Initiating Wrapper Wire ...")
     st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS3,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS3)
@@ -109,22 +98,21 @@ if "chat_id" not in st.session_state:
 if "docs" not in st.session_state:
     logger.info("Initiating Docs ...")
     st.session_state.docs = create_docs()
-if "retriever_1" not in st.session_state:
-    logger.info("Initiating retriever 1...")
-    st.session_state.retriever_1 = custom_retriever(retriever=st.session_state.bm25,docs=st.session_state.docs)
-if "retriever_2" not in st.session_state:
-    logger.info("Initiating retriever 2 ...")
-    st.session_state.retriever_2 = chroma_retriever(retriever=st.session_state.e5,docs=st.session_state.docs)
-if "reranker" not in st.session_state:
-    logger.info("Initiating reranker ...")
-    st.session_state.reranker = Reranker()
+if "retriever_page_content" not in st.session_state:
+    logger.info("Initiating retriever on page content...")
+    st.session_state.retriever_page_content = raw_loader(retriever=st.session_state.tfidf,docs=st.session_state.docs)
+if "retriever_topic" not in st.session_state:
+    logger.info("Initiating retriever on topic...")
+    st.session_state.retriever_topic = topic_loader(retriever=st.session_state.bm25,docs=st.session_state.docs)
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
     st.session_state.llm = PoeRag(wire=st.session_state.wrapper)
 if "chat_history" not in st.session_state:
     logger.info("Initiating chat-history")
     st.session_state.chat_history = []
-
+# if "reranker" not in st.session_state:
+#     logger.info("Initiating reranker ...")
+#     st.session_state.reranker = Reranker()
 for message in st.session_state.chat_history:
     if message["src"] == "Human":
         with st.chat_message("Human"):
@@ -134,15 +122,13 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to LLM ...")
-    context1 = retrieve_context_summerymode(st.session_state.retriever_2,input_text)
-    context2 = retrieve_context_default(st.session_state.retriever_1,input_text)
-    # context = context1 + context2
-    # context = retrieve_public([st.session_state.retriever_1],query=input_text)
-    context1.extend(context2[:12])
-    context = context1
+    topic_based_context = retrieve_topic(st.session_state.retriever_topic,input_text)[:10]
+    raw_context = retrieve_page_content(st.session_state.retriever_page_content,input_text)
+    raw_context.extend(topic_based_context)
+
     # ranked_context = st.session_state.reranker.rerank(input_text,context)
-    _save(name="merged",buffer=[x.page_content for x in context])
-    response,chatId = st.session_state.llm.invoke(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text,context=context1)
+    _save(name="merged",buffer=[x.page_content for x in raw_context])
+    response,chatId = st.session_state.llm.invoke(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text,context=raw_context)
     st.session_state.chat_id = chatId
     session.append({"src":"AI","text":response})
     for letter in response:

@@ -57,7 +57,7 @@ def main():
     )
     args = parser.parse_args()
     if args.subcommand == 'run':
-        print("VERSION IS",args.version)
+        print("creating instance of",args.version)
         _config.set_option("server.headless", True)
         _config.set_option("server.address", args.host)
         _config.set_option("browser.serverAddress", args.host)

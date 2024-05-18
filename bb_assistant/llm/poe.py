@@ -58,6 +58,7 @@ class PoeApi():
             'sd3turbo': 1000}
         self.setup_connection()
         self.connect_ws()
+        # self.init_chat()
         # self.subscribe()
         # self.parent_prompt = """
         # تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
@@ -145,17 +146,8 @@ class PoeApi():
         for bot in result["data"]["viewer"]["availableBotsConnection"]["edges"]:
            available_bots[bot["node"]["nickname"]] = bot["node"]["botId"]
         return available_bots
-    
-    def send_message(self,chatbot:str="capybara",chatId:int=None,message:str=""):
-        while self.ws_error:
-            time.sleep(0.01)
-        self.active_message = ""
-        self.checkpoint = 0
-        self.lock = True
-        payload,variables,headers = self.query_generator("message-edge")
-        if chatbot == "" or chatbot is None:
-            chatbot = "capybara"
-        if chatId == 0 or chatId is None:
+    def init_chat(self,chatbot:str):
+            payload,variables,headers = self.query_generator("message-edge")
             variables["query"] = self.parent_prompt
             variables["bot"] = chatbot
             variables["messagePointPrice"] = self.price_mapping[chatbot]
@@ -168,6 +160,18 @@ class PoeApi():
             self.lock = True
             self.active_message = ""
             self.checkpoint = 0
+            time.sleep(4)
+    def send_message(self,chatbot:str="capybara",chatId:int=None,message:str=""):
+        while self.ws_error:
+            time.sleep(0.01)
+        self.active_message = ""
+        self.checkpoint = 0
+        self.lock = True
+        payload,variables,headers = self.query_generator("message-edge")
+        if chatbot == "" or chatbot is None:
+            chatbot = "capybara"
+        if chatId == 0 or chatId is None or self.activeId is None:
+            self.init_chat(chatbot=chatbot)
         try:
             variables["query"] = message
             variables["bot"] = chatbot
@@ -190,7 +194,7 @@ class PoeApi():
 
         while self.lock:
             logger.info("waiting to collect message response")
-            time.sleep(0.5)
+            time.sleep(1)
         return self.active_message,self.activeId
 
 
@@ -326,31 +330,35 @@ class PoeApi():
 
     def on_message(self, ws, msg):
         try:
+            
             data = json.loads(msg)
             if not "messages" in data.keys():
                 return
-            for message_str in data["messages"]:
-                message_data = json.loads(message_str)
-                if message_data["message_type"] == "subscriptionUpdate":
-                    payload = message_data["payload"]
-                    chatInfo = payload["unique_id"].split(":")
-                    if chatInfo[0] == 'messageAdded':
-                        message = message_data["payload"]["data"].get("messageAdded")
-                        if int(chatInfo[1])== self.activeId:
-                            self.active_message += message["text"][self.checkpoint:]
-                            self.checkpoint = len(self.active_message)
-                            if message['state'] != "incomplete":
-                                logger.info(f"UNLOCKING OUTPUT")
-                                self.lock = False
-                        # else:
-                            # logger.info(f"failed to match active_id={self.activeId} <-> message_id={chatInfo[1]}")
+            if self.lock:
+                for message_str in data["messages"]:
+                    message_data = json.loads(message_str)
+                    if message_data["message_type"] == "subscriptionUpdate":
+                        payload = message_data["payload"]
+                        chatInfo = payload["unique_id"].split(":")
+                        if chatInfo[0] == 'messageAdded':
+                            message = message_data["payload"]["data"].get("messageAdded")
+                            if int(chatInfo[1])== self.activeId:
+                                logger.info(f"collecting related chat {self.activeId}")
+                                self.active_message += message["text"][self.checkpoint:]
+                                self.checkpoint = len(self.active_message)
+                                if message['state'] == "complete":   
+                                    logger.info(f"UNLOCKING OUTPUT")
+                                    self.lock = False
+                                    return
+                            # else:
+                                # logger.info(f"failed to match active_id={self.activeId} <-> message_id={chatInfo[1]}")
 
                             
 
-                message = message_data["payload"]["data"].get("messageAdded")
-                if message is not None:
-                    if message["state"] == "complete":
-                            return
+                # message = message_data["payload"]["data"].get("messageAdded")
+                # if message is not None:
+                #     if message["state"] == "complete":
+                #             return
 
         except Exception:
             logger.error(traceback.format_exc())

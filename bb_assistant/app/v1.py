@@ -1,15 +1,15 @@
 from bb_assistant.util.logging import logger
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 from bb_assistant.vectorizer.e5 import E5Embeddings
-from bb_assistant.retriever.chroma import document_loader
+from bb_assistant.retriever.manual import raw_loader,topic_loader
 from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
 import streamlit as st
 import time
 from langchain_community.llms import Ollama
 from bb_assistant.llm.poe import PoeApi,PoeRag
+from bb_assistant.vectorizer.tfidf import TfIdfRetriever
+
 # from bb_assistant.llm import aya
 
 
@@ -46,7 +46,9 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
+if "tfidf" not in st.session_state:
+    logger.info("Initiating Bm25Embeddings ...")
+    st.session_state.tfidf = TfIdfRetriever
 if "docs" not in st.session_state:
     logger.info("Initiating Docs ...")
     st.session_state.docs = create_docs()
@@ -62,7 +64,7 @@ if "e5" not in st.session_state:
     st.session_state.e5 = E5Embeddings()
 if "retriever" not in st.session_state:
     logger.info("Initiating retriever ...")
-    st.session_state.retriever = document_loader(st.session_state.e5,st.session_state.docs)
+    st.session_state.retriever = raw_loader(st.session_state.e5,st.session_state.docs)
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
     st.session_state.llm = Ollama(model="llama3")

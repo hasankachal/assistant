@@ -5,7 +5,6 @@ from torch import cuda, bfloat16
 from langchain_core.language_models.llms import LLM
 from typing import Any, Dict, Iterator, List, Mapping, Optional
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
-from loaders.e5 import E5Embeddings
 
 
 bnb_config = transformers.BitsAndBytesConfig(
