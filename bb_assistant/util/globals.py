@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional,Union
 from langchain_core.documents import Document
 from bb_assistant.util.globals import *
 from flashrank import Ranker, RerankRequest
-
+import pandas as pd
 
 
 def translate_prompt(prompt:str):
@@ -28,14 +28,36 @@ def read_data(name):
         content = json.load(file)
     return content
 
-def create_docs():
+def create_docs(raw:bool=True):
     filepath = "assets/fa.json"
-    base_data = read_data("fa.json")
-    docs_buffer = []
-    for chunk in base_data:
-        temp_doc = Document(page_content=chunk['content'].replace("\n","").replace('\u200c', ""))
-        temp_doc.metadata = {"source":filepath,"id":chunk['id']}
-        docs_buffer.append(temp_doc)
+    if raw:
+        base_data = read_data("fa.json")
+        docs_buffer = []
+        for chunk in base_data:
+            temp_doc = Document(page_content=chunk['content'].replace("\n","").replace('\u200c', ""))
+            temp_doc.metadata = {"source":filepath,"id":chunk['id']}
+            docs_buffer.append(temp_doc)
+    else:
+        core_path = "assets/framed_translate.csv"
+        base_data = pd.read_csv(core_path,encoding="utf-8-sig")
+        docs = read_data("fa.json")
+        base_data.columns = ["id","parent","topic","page_content_en","page_content_fa"]
+        docs_buffer = []
+        for _, chunk in base_data.iterrows():
+            print(len(docs))
+            chunk["id"] = chunk["id"][2:-3]
+            for idx,i in enumerate(docs):
+                if i["id"] == chunk["id"]:
+                    chunk["page_content"] = i["content"]
+                    if chunk['topic'] != chunk['parent']:
+                        ctx = f"{chunk['topic']} | {chunk['parent']}"
+                    else:
+                        txt = chunk["page_content"].split(".")[:2]
+                        ctx = f"{chunk['topic']} | {txt}"
+                    temp_doc = Document(page_content=ctx)
+                    temp_doc.metadata = {"content":chunk["page_content"],"id": chunk["id"]}
+                    docs_buffer.append(temp_doc)
+                    docs.pop(idx)
     return docs_buffer
 
 ms = "ms-marco-MultiBERT-L-12"

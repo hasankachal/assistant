@@ -2,10 +2,10 @@ from bb_assistant.util.logging import logger
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from bb_assistant.vectorizer.e5 import E5Embeddings
+from bb_assistant.vectorizer.e5 import E5Retriever
 from bb_assistant.vectorizer.bm25 import BM25Retriever
 from bb_assistant.vectorizer.tfidf import TfIdfRetriever
-from bb_assistant.retriever.manual import topic_loader,raw_loader
+from bb_assistant.retriever.manual import create_vec_store
 from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
 import streamlit as st
@@ -20,7 +20,7 @@ st.set_page_config(layout='wide')
 
 st.title('🦜🔗 BB-Assistant')
 st.session_state.theme = "dark"
-st.session_state.bot = "gpt4_o"
+st.session_state.bot = "beaver"
 
 st.markdown(
     """
@@ -63,7 +63,7 @@ def retrieve_topic(retriever:BaseRetriever,query:str) -> List[Document]:
             if line != "" and line != " ":
                 line.replace("\u200c","")
                 buffer.append(Document(page_content=line))
-
+    _save(name="topic",buffer=[x.page_content for x in buffer])
     return buffer
 
 def retrieve_page_content(retriever:BaseRetriever,query:str) -> List[Document]:
@@ -76,13 +76,14 @@ def retrieve_page_content(retriever:BaseRetriever,query:str) -> List[Document]:
             if line != "" and line != " ":
                 line.replace("\u200c","")
                 buffer.append(Document(page_content=line))
+    _save(name="raw",buffer=[x.page_content for x in buffer])
     return buffer
 
     
     return buffer
 if "e5" not in st.session_state:
     logger.info("Initiating E3Embeddings ...")
-    st.session_state.e5 = E5Embeddings()
+    st.session_state.e5 = E5Retriever
 if "bm25" not in st.session_state:
     logger.info("Initiating Bm25Embeddings ...")
     st.session_state.bm25 = BM25Retriever
@@ -95,15 +96,16 @@ if "wrapper" not in st.session_state:
 if "chat_id" not in st.session_state:
     logger.info("Initiating ChatId ...")
     st.session_state.chat_id = None
-if "docs" not in st.session_state:
+if "docs_raw" not in st.session_state:
     logger.info("Initiating Docs ...")
-    st.session_state.docs = create_docs()
-if "retriever_page_content" not in st.session_state:
+    st.session_state.docs_raw = create_docs(raw=True)
+if "docs_topic" not in st.session_state:
+    logger.info("Initiating Docs ...")
+    st.session_state.docs_topic = create_docs(raw=False)
+if "vecstore_1" not in st.session_state or "vecstore_2" not in st.session_state:
     logger.info("Initiating retriever on page content...")
-    st.session_state.retriever_page_content = raw_loader(retriever=st.session_state.tfidf,docs=st.session_state.docs)
-if "retriever_topic" not in st.session_state:
-    logger.info("Initiating retriever on topic...")
-    st.session_state.retriever_topic = topic_loader(retriever=st.session_state.bm25,docs=st.session_state.docs)
+    st.session_state.vecstore_1 = create_vec_store(retriever=st.session_state.tfidf,docs=st.session_state.docs_raw)
+    st.session_state.vecstore_2 = create_vec_store(retriever=st.session_state.e5,docs=st.session_state.docs_topic)
 if "llm" not in st.session_state:
     logger.info("Initiating LLM ...")
     st.session_state.llm = PoeRag(wire=st.session_state.wrapper)
@@ -122,8 +124,9 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to LLM ...")
-    topic_based_context = retrieve_topic(st.session_state.retriever_topic,input_text)[:10]
-    raw_context = retrieve_page_content(st.session_state.retriever_page_content,input_text)
+    raw_context = retrieve_page_content(st.session_state.vecstore_1,input_text)[:8]
+    topic_based_context = retrieve_topic(st.session_state.vecstore_2,input_text)[:5]
+    
     raw_context.extend(topic_based_context)
 
     # ranked_context = st.session_state.reranker.rerank(input_text,context)

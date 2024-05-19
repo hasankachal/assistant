@@ -58,7 +58,7 @@ class PoeApi():
             'sd3turbo': 1000}
         self.setup_connection()
         self.connect_ws()
-        # self.init_chat()
+        
         # self.subscribe()
         # self.parent_prompt = """
         # تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
@@ -73,19 +73,19 @@ class PoeApi():
         # سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکن
         # """
         self.parent_prompt = """
-        تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. لطفا کلیه پیام های من رو در قالب تگ 
+        تو یک دستیار هوشمند بیمه فارسی به نام عباس بو عزار هستی, از شما انتظار دارم در قالب مشخص شده حاوی تگ های 
         <سوال>
         متن سوال اینجا قرار میگیرد
         <پایان سوال>
-        بخوان و بر اساس محتویات داده شده در تگ
         <زمینه>
         مطالب زمینه اینجا قرار میگیرند
         <پایان زمینه>
-        پاسخ بده،
-         سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکنی
-         سعی کن از تمامی داده های داخل قسمت <زمینه> در پاسخ خودت استفاده کنی 
-         پاسخ خود را همیشه با کلمات 'طبق اطلاهات من' شروع کن
+        با خواندن مطالب موجود در تگ <زمینه> به سوال من در قسمت <سوال> پاسخ بدهی
+        در تمام طول مکالمه این موارد را رعایت کن:
+        سعی کن پاسخ کامل و حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکنی
+        پاسخ خود را همیشه با کلمات 'طبق اطلاعات من' شروع کن
         """
+        self.activeId = self.init_chat("beaver")
         # self.parent_prompt =  """
         # # System: Your name is BimeBazar-Assistant and you are my intelligent, knowledgeable, and helpful insurrance specialist bot.   
         # # I want you to read all of my messages in a taged template which contains <CONTEXT> (english context information here...) <END OF CONTEXT> and <QUESTION> (a question in persian languige here...) <END OF QUESTION>.
@@ -147,20 +147,20 @@ class PoeApi():
            available_bots[bot["node"]["nickname"]] = bot["node"]["botId"]
         return available_bots
     def init_chat(self,chatbot:str):
-            payload,variables,headers = self.query_generator("message-edge")
-            variables["query"] = self.parent_prompt
-            variables["bot"] = chatbot
-            variables["messagePointPrice"] = self.price_mapping[chatbot]
-            initial_msg = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
-            self.activeId = initial_msg["data"]["messageEdgeCreate"]["chat"]["chatId"]
-            logger.warning(f"initiated initialized chat with id {self.activeId}")
-            while self.lock:
-                time.sleep(3)
-            logger.warning(f"dumping away {self.active_message} on checkpoint {self.checkpoint}")
-            self.lock = True
-            self.active_message = ""
-            self.checkpoint = 0
-            time.sleep(4)
+        payload,variables,headers = self.query_generator("message-edge")
+        variables["query"] = self.parent_prompt
+        variables["bot"] = chatbot
+        variables["messagePointPrice"] = self.price_mapping[chatbot]
+        initial_msg = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
+        self.activeId = initial_msg["data"]["messageEdgeCreate"]["chat"]["chatId"]
+        logger.warning(f"initiated initialized chat with id {self.activeId}")
+        while self.lock:
+            time.sleep(6)
+        logger.warning(f"dumping away {self.active_message} on checkpoint {self.checkpoint}")
+        self.lock = True
+        self.active_message = ""
+        self.checkpoint = 0
+        return initial_msg["data"]["messageEdgeCreate"]["chat"]["chatId"]
     def send_message(self,chatbot:str="capybara",chatId:int=None,message:str=""):
         while self.ws_error:
             time.sleep(0.01)
@@ -170,8 +170,9 @@ class PoeApi():
         payload,variables,headers = self.query_generator("message-edge")
         if chatbot == "" or chatbot is None:
             chatbot = "capybara"
-        if chatId == 0 or chatId is None or self.activeId is None:
+        if self.activeId is None:
             self.init_chat(chatbot=chatbot)
+        
         try:
             variables["query"] = message
             variables["bot"] = chatbot
@@ -372,8 +373,12 @@ class PoeRag:
 
     def make_prompt(self,message:str="",context:list=[]):
         raw_context = '\n'.join(context)
+        
         template = f"""
             <زمینه>
+            اسم تو عباس بو عزار است 
+            تو یک رباط هوشمند ساخته شده توسط بیمه بازار هستی
+            :با خواندن این مطالب به <سوال> پاسخ کامل بده
             {raw_context}
             <پایان زمینه>
             
@@ -382,6 +387,7 @@ class PoeRag:
             {message} 
             <پایان سوال>
             """
+        logger.info(f"Invoking {template}")
         return template
     def invoke(self,chatbot:str="beaver",chatId:int=None,message:str="",context:List[Document]=[]) -> Any:
         raw_context = [x.page_content for x in context[:12]]

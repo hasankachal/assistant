@@ -11,9 +11,9 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 9000
-      PROXY: http://angrynerd:l00pback@192.168.88.231:456
+      PROXY: http://192.168.20.204:2080
       FORCE_RENEW: False
-      INSTANCE: v1
+      INSTANCE: v3
     networks:
       - nile
   
