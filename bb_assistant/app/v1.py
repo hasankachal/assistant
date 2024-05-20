@@ -1,7 +1,7 @@
 from bb_assistant.util.logging import logger
 from langchain_core.prompts import ChatPromptTemplate
 from bb_assistant.vectorizer.e5 import E5Embeddings
-from bb_assistant.retriever.manual import raw_loader,topic_loader
+from bb_assistant.retriever.manual import create_vec_store
 from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
 import streamlit as st
@@ -56,18 +56,18 @@ if "chat_history" not in st.session_state:
     logger.info("Initiating chat-history")
     st.session_state.chat_history = []
 if "wrapper" not in st.session_state:
-    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS2,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS2)
+    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS3,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS3)
 if "chat_id" not in st.session_state:
     st.session_state.chat_id = None
 if "e5" not in st.session_state:
     logger.info("Initiating Vectorizer ...")
-    st.session_state.e5 = E5Embeddings()
+    st.session_state.e5 = E5Embeddings
 if "retriever" not in st.session_state:
     logger.info("Initiating retriever ...")
-    st.session_state.retriever = raw_loader(st.session_state.e5,st.session_state.docs)
-if "llm" not in st.session_state:
-    logger.info("Initiating LLM ...")
-    st.session_state.llm = Ollama(model="llama3")
+    st.session_state.retriever = create_vec_store(st.session_state.e5,st.session_state.docs)
+# if "llm" not in st.session_state:
+#     logger.info("Initiating LLM ...")
+#     st.session_state.llm = Ollama(model="llama3")
 for message in st.session_state.chat_history:
     if message["src"] == "Human":
         with st.chat_message("Human"):
@@ -77,7 +77,7 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to chain ...")
-    response,chatId = st.session_state.llm.invoke(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
+    response,chatId = st.session_state.wrapper.send_message(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
     st.session_state.chat_id = chatId
     session.append({"src":"AI","text":response})
     for letter in response:

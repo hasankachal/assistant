@@ -59,10 +59,12 @@ def retrieve_topic(retriever:BaseRetriever,query:str) -> List[Document]:
     for doc in result:
         classname = retriever.__repr__()[:13]
         logger.info(f"appending from {classname} CLASS")
-        for line in doc.metadata["content"].split("."):
-            if line != "" and line != " ":
-                line.replace("\u200c","")
-                buffer.append(Document(page_content=line))
+        try:
+            for line in doc.metadata["content"].split("."):
+                if line != "" and line != " ":
+                    buffer.append(Document(page_content=line))
+        except Exception as fail:
+            logger.error(f"failed to collect contnet metadata {doc} {fail}")
     _save(name="topic",buffer=[x.page_content for x in buffer])
     return buffer
 
@@ -74,7 +76,7 @@ def retrieve_page_content(retriever:BaseRetriever,query:str) -> List[Document]:
         logger.info(f"appending from {classname} CLASS")
         for line in doc.page_content.split("."):
             if line != "" and line != " ":
-                line.replace("\u200c","")
+                line.replace("\u200c","").replace("u200f","")
                 buffer.append(Document(page_content=line))
     _save(name="raw",buffer=[x.page_content for x in buffer])
     return buffer
@@ -92,7 +94,7 @@ if "tfidf" not in st.session_state:
     st.session_state.tfidf = TfIdfRetriever
 if "wrapper" not in st.session_state:
     logger.info("Initiating Wrapper Wire ...")
-    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS3,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS3)
+    st.session_state.wrapper = PoeApi(tokens=ACCOUNT_TOKENS3,headers=GLOBAL_HEADERS,proxy=HTTP_PROXY,cookies=ACCOUNT_TOKENS3,chat_bot=st.session_state.bot)
 if "chat_id" not in st.session_state:
     logger.info("Initiating ChatId ...")
     st.session_state.chat_id = None
@@ -115,6 +117,11 @@ if "chat_history" not in st.session_state:
 # if "reranker" not in st.session_state:
 #     logger.info("Initiating reranker ...")
 #     st.session_state.reranker = Reranker()
+
+def click_button():
+    st.session_state.clear()
+
+st.button("Reset", type="primary",on_click=click_button)
 for message in st.session_state.chat_history:
     if message["src"] == "Human":
         with st.chat_message("Human"):
@@ -124,8 +131,8 @@ for message in st.session_state.chat_history:
             st.markdown(message["text"])
 def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to LLM ...")
-    raw_context = retrieve_page_content(st.session_state.vecstore_1,input_text)[:8]
-    topic_based_context = retrieve_topic(st.session_state.vecstore_2,input_text)[:5]
+    raw_context = retrieve_page_content(st.session_state.vecstore_1,input_text)[:9]
+    topic_based_context = retrieve_topic(st.session_state.vecstore_2,input_text)[:9]
     
     raw_context.extend(topic_based_context)
 

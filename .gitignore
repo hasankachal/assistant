@@ -6,6 +6,7 @@ pyvenv.cfg
 test.py
 tmp
 loaders
+share
 etc
 assets/cache/*
 __pycache__

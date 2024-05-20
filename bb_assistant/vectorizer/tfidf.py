@@ -14,7 +14,7 @@ from langchain_core.pydantic_v1 import Field
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from bb_assistant.util.globals import *
-
+from sklearn.metrics.pairwise import cosine_similarity
 
 def preprocess_text(text: str | List[str]) -> List[str]:
         try:
@@ -58,7 +58,7 @@ class TfIdfRetriever(BaseRetriever):
     ):
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
-            from sklearn.metrics.pairwise import cosine_similarity
+            
         except ImportError:
             raise ImportError(
                 "Could not import sklearn TfIdf,cosin-similarity please install with `pip install "

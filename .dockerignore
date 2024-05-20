@@ -16,6 +16,5 @@ bb_assistant/retriever/__pycache__
 bb_assistant/config/__pycache__
 bb_assistant/util/__pycache__
 bb_assistant/app/__pycache__
-bb_assistant.egg-info
 .vscode
 *.egg-*

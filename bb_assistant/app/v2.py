@@ -8,7 +8,7 @@ WRAPPER = None
 st.set_page_config(layout='wide')
 
 
-st.title('🦜🔗 INTELIX')
+st.title('🦜🔗 INTELLIX')
 st.session_state.theme = "dark"
 st.session_state.bot = "beaver"
 st.markdown(

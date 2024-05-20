@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import os
-PROXY_URI = os.getenv("PROXY","http://192.168.20.204:2080")
+PROXY_URI = os.getenv("PROXY","http://127.0.0.1:2080")
 
 class BaseConfig:
     def update(self, **kwargs):
@@ -75,8 +75,8 @@ GLOBAL_HEADERS = {
 "cookie":shred_cookies(ACCOUNT_TOKENS3)
 }
 
-HTTP_PROXY = {
-    "https":PROXY_URI, 
-    "http":PROXY_URI}
-
+# HTTP_PROXY = {
+#     "https":PROXY_URI, 
+#     "http":PROXY_URI}
+HTTP_PROXY = None
 

@@ -22,7 +22,7 @@ class PoeApi():
     home_url = "https://poe.com"
     settings_url = f"https://poe.com/api/settings?channel={SOCKET_CHANNEL3['channel']}"
 
-    def __init__(self, tokens:dict={}, proxy:dict={}, headers:dict={}, cookies:dict={},device_id=None):
+    def __init__(self, tokens:dict={}, proxy:dict={}, headers:dict={}, cookies:dict={},chat_bot:str="beaver"):
         self.ws_connecting = False
         self.ws_connected = False
         self.ws_error = False
@@ -31,7 +31,6 @@ class PoeApi():
         self.cookies = cookies
         self.static_headers = headers
         self.tokens = tokens
-        self.device_id = device_id
         self.proxy = proxy
         self.active_message = ""
         self.formkey_salt = None
@@ -39,6 +38,7 @@ class PoeApi():
         self.channel = None
         self.checkpoint = 0
         self.lock = True
+        self.chat_bot = chat_bot
         self.price_mapping = {
             'gpt4_o':300,
             'capybara': 20,
@@ -60,32 +60,25 @@ class PoeApi():
         self.connect_ws()
         
         # self.subscribe()
-        # self.parent_prompt = """
-        # تو یک دستیار هوشمند بیمه فارسی زیان به نام عباس بو عزار هستی. از شما انتظار دارم تحت هر شرایطی در این مکالمه به کلیه سوالات در مورد هویت خود یا نام خود, خودت را با هویت عباس بو عزار یک ربات پیشرفته فارسی ساخته شده توسط امین کاتب صابر معرفی کنی لطفا کلیه پیام های من رو در قالب تگ 
-        # <سوال>
-        # و
-        # <پایان سوال>
-        # بخوان و بر اساس محتویات داده شده در تگ
-        # <زمینه>
-        # و
-        # <پایان زمینه>
-        # پاسخ بده،
-        # سعی کن پاسخ حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکن
-        # """
+        self.parent_prompt_v1 = """
+        :از شما انتظار دارم در این مکالمه به تمامی سوالات راجع به هویت خود یا نام یا سازنده خود به این شکل پاسخ بدی
+        تو یک دستیار هوشمند فارسی به نام  آناهیتا هستی که توسط متخصصین تیم اینتلیکس طراحی شدی
+        """
         self.parent_prompt = """
-        تو یک دستیار هوشمند بیمه فارسی به نام عباس بو عزار هستی, از شما انتظار دارم در قالب مشخص شده حاوی تگ های 
+        تو یک دستیار هوشمند بیمه فارسی به نام آناهیتا هستی, از شما انتظار دارم در قالب مشخص شده حاوی تگ های 
         <سوال>
         متن سوال اینجا قرار میگیرد
         <پایان سوال>
         <زمینه>
         مطالب زمینه اینجا قرار میگیرند
         <پایان زمینه>
-        با خواندن مطالب موجود در تگ <زمینه> به سوال من در قسمت <سوال> پاسخ بدهی
+        با خواندن مطالب موجود در تگ <زمینه> قست های مرتبط با سوال من رو پیدا کن و به درخواست من در قسمت <سوال> پاسخ بده
         در تمام طول مکالمه این موارد را رعایت کن:
         سعی کن پاسخ کامل و حتما بر اساس اطلاعات داخل قسمت <زمینه> باشدو از دانش قبلی خودت استفاده ایی نکنی
         پاسخ خود را همیشه با کلمات 'طبق اطلاعات من' شروع کن
+        اگر درخواست من در خصوص توضیح بیشتر در مورد قسمتی از مکالمه بود پاسخ من را از قسمت زمینه پیام قبل بده و زمینه جدید را نادیده بگیر
         """
-        self.activeId = self.init_chat("beaver")
+        self.activeId = self.init_chat()
         # self.parent_prompt =  """
         # # System: Your name is BimeBazar-Assistant and you are my intelligent, knowledgeable, and helpful insurrance specialist bot.   
         # # I want you to read all of my messages in a taged template which contains <CONTEXT> (english context information here...) <END OF CONTEXT> and <QUESTION> (a question in persian languige here...) <END OF QUESTION>.
@@ -146,11 +139,11 @@ class PoeApi():
         for bot in result["data"]["viewer"]["availableBotsConnection"]["edges"]:
            available_bots[bot["node"]["nickname"]] = bot["node"]["botId"]
         return available_bots
-    def init_chat(self,chatbot:str):
+    def init_chat(self):
         payload,variables,headers = self.query_generator("message-edge")
         variables["query"] = self.parent_prompt
-        variables["bot"] = chatbot
-        variables["messagePointPrice"] = self.price_mapping[chatbot]
+        variables["bot"] = self.chat_bot
+        variables["messagePointPrice"] = self.price_mapping[self.chat_bot]
         initial_msg = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
         self.activeId = initial_msg["data"]["messageEdgeCreate"]["chat"]["chatId"]
         logger.warning(f"initiated initialized chat with id {self.activeId}")
@@ -169,13 +162,13 @@ class PoeApi():
         self.lock = True
         payload,variables,headers = self.query_generator("message-edge")
         if chatbot == "" or chatbot is None:
-            chatbot = "capybara"
+            self.chat_bot = "capybara"
         if self.activeId is None:
-            self.init_chat(chatbot=chatbot)
+            self.init_chat()
         
         try:
             variables["query"] = message
-            variables["bot"] = chatbot
+            variables["bot"] = self.chat_bot
             variables["chatId"]= self.activeId
             variables["messagePointPrice"] = self.price_mapping[chatbot]
             message_data = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
@@ -231,7 +224,7 @@ class PoeApi():
             raise e
     def ws_run_thread(self):
         kwargs = {}
-        if self.proxy:
+        if self.proxy is not None:
             proxy_parsed = urlparse(self.proxy["https"])
             kwargs = {
                 "proxy_type": "socks5h",
@@ -376,7 +369,7 @@ class PoeRag:
         
         template = f"""
             <زمینه>
-            اسم تو عباس بو عزار است 
+            اسم تو آناهیتا است 
             تو یک رباط هوشمند ساخته شده توسط بیمه بازار هستی
             :با خواندن این مطالب به <سوال> پاسخ کامل بده
             {raw_context}

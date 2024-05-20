@@ -1,10 +1,10 @@
 version: "3"
 services:
-  poe_api:
-    image: nexus.bmbzr.ir/nile/chatbot:v0.1
+  bb_assistant:
+    image: nexus.bmbzr.ir/nile/chatbot:v0.2
     restart: always
-    hostname: poe_api
-    container_name: poe_api
+    hostname: bb_assistant
+    container_name: bb_assistant
     ports:
       - 9000:9000
       - 8501:8501
