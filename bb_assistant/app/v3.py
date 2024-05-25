@@ -133,18 +133,21 @@ def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to LLM ...")
     raw_context = retrieve_page_content(st.session_state.vecstore_1,input_text)[:9]
     topic_based_context = retrieve_topic(st.session_state.vecstore_2,input_text)[:9]
-    
     raw_context.extend(topic_based_context)
-
-    # ranked_context = st.session_state.reranker.rerank(input_text,context)
     _save(name="merged",buffer=[x.page_content for x in raw_context])
     response,chatId = st.session_state.llm.invoke(chatbot=st.session_state.bot,chatId=st.session_state.chat_id,message=input_text,context=raw_context)
     st.session_state.chat_id = chatId
-    session.append({"src":"AI","text":response})
-    for letter in response:
-        time.sleep(0.01)
-        yield letter
-
+    # session.append({"src":"AI","text":response})
+    # for letter in response:
+    #     time.sleep(0.01)
+    #     yield letter
+    checkpoint = 0
+    while st.session_state.wrapper.lock:
+        # if st.session_state.wrapper.active_message.endswith(" "):
+        time.sleep(0.1)
+        yield st.session_state.wrapper.active_message[checkpoint:]
+        checkpoint = len(st.session_state.wrapper.active_message)
+    session.append({"src":"AI","text":st.session_state.wrapper.active_message})
 
 
 user_query = st.chat_input("Enter a prompt here")

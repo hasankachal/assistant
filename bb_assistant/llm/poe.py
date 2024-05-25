@@ -141,7 +141,7 @@ class PoeApi():
         return available_bots
     def init_chat(self):
         payload,variables,headers = self.query_generator("message-edge")
-        variables["query"] = self.parent_prompt
+        variables["query"] = self.parent_prompt_v1
         variables["bot"] = self.chat_bot
         variables["messagePointPrice"] = self.price_mapping[self.chat_bot]
         initial_msg = self.client.execute(query=payload, variables=variables,headers=headers,operation_name=headers['x-apollo-operation-name'])
@@ -186,9 +186,9 @@ class PoeApi():
         except TypeError:
             raise RuntimeError(f"An unknown error occurred. Raw response data: {message_data}")
 
-        while self.lock:
-            logger.info("waiting to collect message response")
-            time.sleep(1)
+        # while self.lock:
+        #     logger.info("waiting to collect message response")
+        #     time.sleep(1)
         return self.active_message,self.activeId
 
 
@@ -342,6 +342,7 @@ class PoeApi():
                                 self.checkpoint = len(self.active_message)
                                 if message['state'] == "complete":   
                                     logger.info(f"UNLOCKING OUTPUT")
+                                    time.sleep(4)
                                     self.lock = False
                                     return
                             # else:

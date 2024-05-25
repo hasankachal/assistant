@@ -1,6 +1,6 @@
 from bb_assistant.util.logging import logger
 from langchain_core.prompts import ChatPromptTemplate
-from bb_assistant.vectorizer.e5 import E5Embeddings
+from bb_assistant.vectorizer.e5 import E5Retriever
 from bb_assistant.retriever.manual import create_vec_store
 from bb_assistant.util.globals import *
 from bb_assistant.util.config import *
@@ -42,6 +42,10 @@ st.markdown(
         text-align: right;
         direction:rtl;
     }
+    .st-emotion-cache-10trblm{
+        text-align: right;
+        direction:rtl;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -61,7 +65,7 @@ if "chat_id" not in st.session_state:
     st.session_state.chat_id = None
 if "e5" not in st.session_state:
     logger.info("Initiating Vectorizer ...")
-    st.session_state.e5 = E5Embeddings
+    st.session_state.e5 = E5Retriever
 if "retriever" not in st.session_state:
     logger.info("Initiating retriever ...")
     st.session_state.retriever = create_vec_store(st.session_state.e5,st.session_state.docs)
@@ -79,10 +83,19 @@ def generate_response_llm(input_text,session):
     logger.info("Invoking prompt to chain ...")
     response,chatId = st.session_state.wrapper.send_message(chatbot="beaver",chatId=st.session_state.chat_id,message=input_text)
     st.session_state.chat_id = chatId
-    session.append({"src":"AI","text":response})
-    for letter in response:
-        time.sleep(0.01)
-        yield letter
+    # session.append({"src":"AI","text":response})
+    checkpoint = 0
+    while st.session_state.wrapper.lock:
+        # if st.session_state.wrapper.active_message.endswith(" "):
+        time.sleep(0.2)
+        yield st.session_state.wrapper.active_message[checkpoint:]
+        checkpoint = len(st.session_state.wrapper.active_message)
+    session.append({"src":"AI","text":st.session_state.wrapper.active_message})
+        
+
+    # for letter in response:
+    #     time.sleep(0.01)
+    #     yield letter
 
 
 
