@@ -3,26 +3,13 @@ import json
 from langchain_core.retrievers import BaseRetriever
 from typing import Any, Callable, Dict, Iterable, List, Optional,Union
 from langchain_core.documents import Document
-from bb_assistant.util.globals import *
 from flashrank import Ranker, RerankRequest
 import pandas as pd
 
 
-def translate_prompt(prompt:str):
-    from bb_assistant.llm import aya
-    result = aya.Aya101LLM()._call(
-        f"Translate the following text from perisan to english then summerize it to usefull sentences: \n {prompt}"
-    )
-    print("TRANSLATED PROMPT :",result)
-    return result
 
-def translate_result(prompt: str):
-    from bb_assistant.llm import aya
-    prompt.replace(":"," ")
-    return aya.Aya101LLM()._call(
-        f"Translate the following text from English to Persian: {prompt}"
-    )
 
+# https://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@github.com/hasankachal/assistant.git
 def read_data(name):
     with open(f"assets/{name}","r",encoding='utf-8') as file:
         content = json.load(file)
@@ -62,27 +49,32 @@ def create_docs_old(raw:bool=True):
 def create_docs(raw:bool=True):
     filepath = "assets/fa.json"
     if raw:
-        core_path = "assets/framed.csv"
+        core_path = "assets/bimebazar_com.csv"
         base_data = pd.read_csv(core_path,encoding="utf-8-sig")
         docs_buffer = []
         for _, chunk in base_data.iterrows():
-            if isinstance(chunk["page_content"],str):
-                content = chunk["page_content"].replace("u200b","").replace("u200f","").replace("u200c","").replace("u200e","").replace("u200d","")
+            if isinstance(chunk["content"],str):
+                cn = chunk["content"].replace("'",'"')
+                chunk["content"] = json.loads(cn)
+                content = ' '.join(chunk["content"])
                 temp_doc = Document(page_content=content)
                 docs_buffer.append(temp_doc)
     else:
-        core_path = "assets/framed.csv"
+        core_path = "assets/bimebazar_com.csv"
         base_data = pd.read_csv(core_path,encoding="utf-8-sig")
         docs_buffer = []
         for _, chunk in base_data.iterrows():
-            if isinstance(chunk["page_content"],str):
-                content = chunk["page_content"].replace("u200b","").replace("u200f","").replace("u200c","").replace("u200e","").replace("u200d","")
+            if isinstance(chunk["content"],str):
+                cn = chunk["content"].replace("'",'"')
+                chunk["content"] = json.loads(cn)
+                content = ' '.join(chunk["content"])
+                docs_buffer.append(temp_doc)
                 if chunk['topic'] != chunk['parent'] and isinstance(chunk['parent'],str):
                     ctx = f"{chunk['topic']} | {chunk['parent']}"
                 else:
-                    txt = chunk["page_content"].split(".")[:2]
+                    txt = ' '.join(chunk["content"])
                     ctx = f"{chunk['topic']} | {txt}"
-                temp_doc = Document(page_content=ctx.replace("u200b","").replace("u200f","").replace("u200c","").replace("u200e","").replace("u200d",""))
+                temp_doc = Document(page_content=ctx)
                 temp_doc.metadata = {"content":content,"id": chunk["id"]}
                 docs_buffer.append(temp_doc)
     return docs_buffer
