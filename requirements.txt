@@ -13,4 +13,4 @@ FlashRank
 rank_bm25
 nltk
 future
-sklearn
+scikit-learn
